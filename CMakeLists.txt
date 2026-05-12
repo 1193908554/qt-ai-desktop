@@ -55,6 +55,7 @@ set(QTAI_CORE_SOURCES
     src/logger.cpp
     src/config.cpp
     src/llamacpp_backend.cpp
+    src/onnxruntime_backend.cpp
 )
 
 set(QTAI_CORE_HEADERS
@@ -66,6 +67,7 @@ set(QTAI_CORE_HEADERS
     include/qt-ai-desktop/logger.h
     include/qt-ai-desktop/config.h
     include/qt-ai-desktop/llamacpp_backend.h
+    include/qt-ai-desktop/onnxruntime_backend.h
 )
 
 add_library(qt-ai-desktop-core STATIC
@@ -146,8 +148,34 @@ else()
 endif()
 
 if(QTAI_USE_ONNX_RUNTIME)
-    # TODO: 集成 ONNX Runtime
-    message(STATUS "ONNX Runtime backend: ENABLED (needs integration)")
+    # 尝试查找 ONNX Runtime
+    find_package(onnxruntime QUIET)
+    
+    if(onnxruntime_FOUND)
+        message(STATUS "ONNX Runtime backend: ENABLED (found)")
+        target_link_libraries(qt-ai-desktop-core PRIVATE onnxruntime)
+        target_compile_definitions(qt-ai-desktop-core PRIVATE QTAI_HAS_ONNXRUNTIME)
+    else()
+        # 尝试通过 FetchContent 获取
+        include(FetchContent)
+        FetchContent_Declare(
+            onnxruntime
+            URL https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-win-x64-1.17.0.zip
+        )
+        FetchContent_GetProperties(onnxruntime)
+        
+        if(NOT onnxruntime_POPULATED)
+            message(STATUS "ONNX Runtime: Fetching from GitHub...")
+            FetchContent_Populate(onnxruntime)
+        endif()
+        
+        target_include_directories(qt-ai-desktop-core PRIVATE ${onnxruntime_SOURCE_DIR}/include)
+        target_link_libraries(qt-ai-desktop-core PRIVATE ${onnxruntime_SOURCE_DIR}/lib/onnxruntime.lib)
+        target_compile_definitions(qt-ai-desktop-core PRIVATE QTAI_HAS_ONNXRUNTIME)
+        message(STATUS "ONNX Runtime backend: ENABLED (from binary)")
+    endif()
+else()
+    message(STATUS "ONNX Runtime backend: DISABLED")
 endif()
 
 if(QTAI_USE_VULKAN)
