@@ -54,6 +54,7 @@ set(QTAI_CORE_SOURCES
     src/simulation_backend.cpp
     src/logger.cpp
     src/config.cpp
+    src/llamacpp_backend.cpp
 )
 
 set(QTAI_CORE_HEADERS
@@ -64,6 +65,7 @@ set(QTAI_CORE_HEADERS
     include/qt-ai-desktop/simulation_backend.h
     include/qt-ai-desktop/logger.h
     include/qt-ai-desktop/config.h
+    include/qt-ai-desktop/llamacpp_backend.h
 )
 
 add_library(qt-ai-desktop-core STATIC
@@ -109,10 +111,38 @@ qt_add_qml_module(qt-ai-desktop-core
 # 后端集成（可选）
 # =============================================================================
 if(QTAI_USE_LLAMA_CPP)
-    # TODO: 集成 llama.cpp
-    # find_package(llama REQUIRED)
-    # target_link_libraries(qt-ai-desktop-core PRIVATE llama)
-    message(STATUS "llama.cpp backend: ENABLED (needs integration)")
+    # 尝试查找 llama.cpp
+    find_package(llama QUIET)
+    
+    if(llama_FOUND)
+        message(STATUS "llama.cpp backend: ENABLED (found)")
+        target_link_libraries(qt-ai-desktop-core PRIVATE llama)
+        target_compile_definitions(qt-ai-desktop-core PRIVATE QTAI_HAS_LLAMA_CPP)
+    else()
+        # 尝试通过 FetchContent 获取
+        include(FetchContent)
+        FetchContent_Declare(
+            llama_cpp
+            GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
+            GIT_TAG        master
+        )
+        FetchContent_GetProperties(llama_cpp)
+        
+        if(NOT llama_cpp_POPULATED)
+            message(STATUS "llama.cpp: Fetching from GitHub...")
+            set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+            set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+            set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+            FetchContent_Populate(llama_cpp)
+            add_subdirectory(${llama_cpp_SOURCE_DIR} ${llama_cpp_BINARY_DIR})
+        endif()
+        
+        target_link_libraries(qt-ai-desktop-core PRIVATE llama common)
+        target_compile_definitions(qt-ai-desktop-core PRIVATE QTAI_HAS_LLAMA_CPP)
+        message(STATUS "llama.cpp backend: ENABLED (from source)")
+    endif()
+else()
+    message(STATUS "llama.cpp backend: DISABLED")
 endif()
 
 if(QTAI_USE_ONNX_RUNTIME)

@@ -27,6 +27,7 @@
 - ⚙️ **配置管理** - JSON 配置文件支持
 - 🧪 **完整测试** - GoogleTest 单元测试
 - 🔄 **CI/CD** - GitHub Actions 多平台构建
+- 🦙 **llama.cpp** - GGUF 模型推理支持
 
 ## 🚀 快速开始
 
