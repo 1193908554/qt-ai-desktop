@@ -1,30 +1,48 @@
-﻿cmake_minimum_required(VERSION 3.20)
+﻿# =============================================================================
+# Simple Chat Example
+# =============================================================================
 
-project(simple_chat LANGUAGES CXX)
+set(EXAMPLE_SOURCES
+    main.cpp
+)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(EXAMPLE_QML
+    main.qml
+)
 
-# 查找 Qt6
-find_package(Qt6 6.7 REQUIRED COMPONENTS Core Gui Widgets)
+# 添加可执行文件
+qt_add_executable(simple_chat
+    ${EXAMPLE_SOURCES}
+)
 
-# 启用自动处理
-set(CMAKE_AUTOMOC ON)
-
-# 创建可执行文件
-add_executable(simple_chat main.cpp)
+# 设置属性
+set_target_properties(simple_chat PROPERTIES
+    MACOSX_BUNDLE TRUE
+    WIN32_EXECUTABLE TRUE
+    AUTOMOC ON
+    AUTORCC ON
+)
 
 # 链接库
 target_link_libraries(simple_chat
     PRIVATE
-        Qt6::Core
+        QtAIDesktop::qt-ai-desktop-core
         Qt6::Gui
         Qt6::Widgets
-        QtAI::Core
+        Qt6::Quick
 )
 
-# 包含目录
-target_include_directories(simple_chat
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
+# 添加 QML 模块
+qt_add_qml_module(simple_chat
+    URI "SimpleChat"
+    VERSION "1.0"
+    QML_FILES ${EXAMPLE_QML}
+)
+
+# =============================================================================
+# 安装
+# =============================================================================
+install(TARGETS simple_chat
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )

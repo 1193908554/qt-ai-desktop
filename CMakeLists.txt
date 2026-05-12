@@ -1,82 +1,184 @@
 ﻿cmake_minimum_required(VERSION 3.20)
 
 project(qt-ai-desktop
-    VERSION 0.1.0
+    VERSION 1.0.0
     DESCRIPTION "Qt + AI Desktop Application Framework"
     HOMEPAGE_URL "https://github.com/1193908554/qt-ai-desktop"
     LANGUAGES CXX
 )
 
-# 设置 C++20 标准
+# =============================================================================
+# C++ 标准
+# =============================================================================
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# 查找 Qt6 包
-find_package(Qt6 6.7 REQUIRED COMPONENTS
+# =============================================================================
+# Qt6 配置
+# =============================================================================
+find_package(Qt6 6.5 REQUIRED COMPONENTS
     Core
     Gui
-    Qml
+    Widgets
     Quick
-    QuickControls2
+    Qml
 )
 
-# 启用 Qt 自动处理
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
+# =============================================================================
+# 选项配置
+# =============================================================================
+option(QTAI_BUILD_EXAMPLES "Build example applications" ON)
+option(QTAI_BUILD_TESTS "Build tests" OFF)
+option(QTAI_USE_LLAMA_CPP "Enable llama.cpp backend" ON)
+option(QTAI_USE_ONNX_RUNTIME "Enable ONNX Runtime backend" OFF)
+option(QTAI_USE_VULKAN "Enable Vulkan compute backend" OFF)
 
-# 选项
-option(QT_AI_DESKTOP_BUILD_EXAMPLES "Build examples" ON)
-option(QT_AI_DESKTOP_BUILD_TESTS "Build tests" OFF)
-option(QT_AI_DESKTOP_USE_LLAMA_CPP "Use llama.cpp backend" ON)
-option(QT_AI_DESKTOP_USE_ONNX_RUNTIME "Use ONNX Runtime backend" OFF)
-option(QT_AI_DESKTOP_USE_WHISPER_CPP "Use whisper.cpp backend" OFF)
+# =============================================================================
+# 编译定义
+# =============================================================================
+add_compile_definitions(
+    QT_DEPRECATED_WARNINGS
+    QT_NO_KEYWORDS
+    $<$<CONFIG:Debug>:QTAI_DEBUG>
+)
 
-# 添加子目录
-add_subdirectory(src)
+# =============================================================================
+# 核心库 - qt-ai-desktop-core
+# =============================================================================
+set(QTAI_CORE_SOURCES
+    src/ai_engine.cpp
+    src/model_manager.cpp
+    src/ai_chat_model.cpp
+)
 
-# 构建示例
-if(QT_AI_DESKTOP_BUILD_EXAMPLES)
+set(QTAI_CORE_HEADERS
+    include/qt-ai-desktop/ai_engine.h
+    include/qt-ai-desktop/model_manager.h
+    include/qt-ai-desktop/ai_chat_model.h
+)
+
+add_library(qt-ai-desktop-core STATIC
+    ${QTAI_CORE_SOURCES}
+    ${QTAI_CORE_HEADERS}
+)
+
+target_include_directories(qt-ai-desktop-core
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(qt-ai-desktop-core
+    PUBLIC
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
+        Qt6::Qml
+)
+
+set_target_properties(qt-ai-desktop-core PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION 1
+    AUTOMOC ON
+)
+
+# =============================================================================
+# QML 模块注册
+# =============================================================================
+qt_add_qml_module(qt-ai-desktop-core
+    URI "QtAIDesktop"
+    VERSION "1.0"
+    QML_FILES
+    SOURCES
+        ${QTAI_CORE_HEADERS}
+        ${QTAI_CORE_SOURCES}
+)
+
+# =============================================================================
+# 后端集成（可选）
+# =============================================================================
+if(QTAI_USE_LLAMA_CPP)
+    # TODO: 集成 llama.cpp
+    # find_package(llama REQUIRED)
+    # target_link_libraries(qt-ai-desktop-core PRIVATE llama)
+    message(STATUS "llama.cpp backend: ENABLED (needs integration)")
+endif()
+
+if(QTAI_USE_ONNX_RUNTIME)
+    # TODO: 集成 ONNX Runtime
+    message(STATUS "ONNX Runtime backend: ENABLED (needs integration)")
+endif()
+
+if(QTAI_USE_VULKAN)
+    # TODO: 集成 Vulkan
+    message(STATUS "Vulkan compute backend: ENABLED (needs integration)")
+endif()
+
+# =============================================================================
+# 示例应用
+# =============================================================================
+if(QTAI_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
+# =============================================================================
 # 安装配置
+# =============================================================================
 include(GNUInstallDirs)
 
-# 导出目标
-install(EXPORT qt-ai-desktop-targets
-    FILE QtAITargets.cmake
-    NAMESPACE QtAI::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/QtAI
+install(TARGETS qt-ai-desktop-core
+    EXPORT qt-ai-desktop-targets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-# 生成配置文件
+install(DIRECTORY include/qt-ai-desktop
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.h"
+)
+
+install(EXPORT qt-ai-desktop-targets
+    FILE qt-ai-desktop-targets.cmake
+    NAMESPACE QtAIDesktop::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/qt-ai-desktop
+)
+
+# =============================================================================
+# CMake 包配置
+# =============================================================================
 include(CMakePackageConfigHelpers)
 
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/qt-ai-desktop-config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/qt-ai-desktop-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/qt-ai-desktop
+)
+
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/QtAIConfigVersion.cmake"
+    ${CMAKE_CURRENT_BINARY_DIR}/qt-ai-desktop-config-version.cmake
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/QtAIConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/QtAIConfig.cmake"
-    @ONLY
-)
-
 install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/QtAIConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/QtAIConfigVersion.cmake"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/QtAI
+    ${CMAKE_CURRENT_BINARY_DIR}/qt-ai-desktop-config.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/qt-ai-desktop-config-version.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/qt-ai-desktop
 )
 
-# 打印配置信息
-message(STATUS "Qt AI Desktop v${PROJECT_VERSION}")
-message(STATUS "  Qt Version: ${Qt6_VERSION}")
-message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
-message(STATUS "  Build Examples: ${QT_AI_DESKTOP_BUILD_EXAMPLES}")
-message(STATUS "  llama.cpp: ${QT_AI_DESKTOP_USE_LLAMA_CPP}")
-message(STATUS "  ONNX Runtime: ${QT_AI_DESKTOP_USE_ONNX_RUNTIME}")
-message(STATUS "  whisper.cpp: ${QT_AI_DESKTOP_USE_WHISPER_CPP}")
+# =============================================================================
+# 打包配置
+# =============================================================================
+set(CPACK_PACKAGE_NAME "qt-ai-desktop")
+set(CPACK_PACKAGE_VENDOR "LinXi")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY ${PROJECT_DESCRIPTION})
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_CONTACT "https://github.com/1193908554/qt-ai-desktop")
+set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
+set(CPACK_STRIP_FILES TRUE)
+
+include(CPack)

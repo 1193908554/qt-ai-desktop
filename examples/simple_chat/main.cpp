@@ -1,80 +1,50 @@
-#include <QApplication>
-#include <QLabel>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QWidget>
-#include <QTextEdit>
-#include <qt-ai-desktop/ai_engine.h>
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QIcon>
 
-int main(int argc, char *argv[]) {
-    QApplication app(argc, argv);
-    app.setApplicationName("Simple Chat");
-    app.setApplicationVersion("0.1.0");
+#include "qt-ai-desktop/ai_engine.h"
+#include "qt-ai-desktop/model_manager.h"
+#include "qt-ai-desktop/ai_chat_model.h"
+
+using namespace QtAIDesktop;
+
+int main(int argc, char *argv[])
+{
+    QGuiApplication app(argc, argv);
+    app.setApplicationName("AI Chat Demo");
+    app.setOrganizationName("Qt AI Desktop");
+    app.setApplicationVersion("1.0.0");
     
-    // 创建主窗口
-    QWidget window;
-    window.setWindowTitle("Qt AI Desktop - Simple Chat");
-    window.setMinimumSize(400, 300);
+    // 设置应用图标
+    app.setWindowIcon(QIcon(":/qt-ai-desktop/icon.png"));
     
-    // 创建布局
-    QVBoxLayout *layout = new QVBoxLayout(&window);
+    // 创建核心对象
+    AIEngine engine;
+    ModelManager modelManager;
+    AIChatModel chatModel;
     
-    // 聊天显示区域
-    QTextEdit *chatDisplay = new QTextEdit(&window);
-    chatDisplay->setReadOnly(true);
-    layout->addWidget(chatDisplay);
+    // 连接聊天模型和引擎
+    chatModel.setEngine(&engine);
     
-    // 输入框和按钮
-    QHBoxLayout *inputLayout = new QHBoxLayout();
+    // 创建 QML 引擎
+    QQmlApplicationEngine qmlEngine;
     
-    QLineEdit *inputField = new QLineEdit(&window);
-    inputField->setPlaceholderText("输入消息...");
-    inputLayout->addWidget(inputField);
+    // 暴露对象到 QML
+    qmlEngine.rootContext()->setContextProperty("aiEngine", &engine);
+    qmlEngine.rootContext()->setContextProperty("modelManager", &modelManager);
+    qmlEngine.rootContext()->setContextProperty("chatModel", &chatModel);
     
-    QPushButton *sendButton = new QPushButton("发送", &window);
-    inputLayout->addWidget(sendButton);
+    // 扫描本地模型
+    modelManager.scanLocalModels();
     
-    layout->addLayout(inputLayout);
+    // 加载 QML UI
+    qmlEngine.load(QUrl("qrc:/qt-ai-desktop/examples/simple_chat/main.qml"));
     
-    // 创建 AI 引擎
-    QtAIDesktop::AIEngine engine;
-    
-    // 连接信号
-    QObject::connect(&engine, &QtAIDesktop::AIEngine::tokenGenerated,
-                     [chatDisplay](const QString &token) {
-        chatDisplay->moveCursor(QTextCursor::End);
-        chatDisplay->insertPlainText(token);
-    });
-    
-    QObject::connect(&engine, &QtAIDesktop::AIEngine::responseComplete,
-                     [chatDisplay](const QString &response) {
-        chatDisplay->append("\n");
-    });
-    
-    QObject::connect(&engine, &QtAIDesktop::AIEngine::errorOccurred,
-                     [chatDisplay](const QString &error) {
-        chatDisplay->append(QString("Error: %1").arg(error));
-    });
-    
-    // 发送按钮点击
-    QObject::connect(sendButton, &QPushButton::clicked, [&]() {
-        QString input = inputField->text().trimmed();
-        if (input.isEmpty()) return;
-        
-        chatDisplay->append(QString("You: %1").arg(input));
-        inputField->clear();
-        
-        engine.chatAsync(input);
-    });
-    
-    // 输入框回车
-    QObject::connect(inputField, &QLineEdit::returnPressed, [sendButton]() {
-        sendButton->click();
-    });
-    
-    // 显示窗口
-    window.show();
+    if (qmlEngine.rootObjects().isEmpty()) {
+        qWarning() << "Failed to load QML file";
+        return -1;
+    }
     
     return app.exec();
 }
