@@ -1,0 +1,48 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled files
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Qt files
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+*.pro.user
+*.pro.user.*
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Model files
+*.gguf
+*.bin
+*.onnx
+*.pt
+*.pth
+
+# Logs
+*.log
