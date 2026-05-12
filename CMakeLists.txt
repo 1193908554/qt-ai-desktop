@@ -50,12 +50,20 @@ set(QTAI_CORE_SOURCES
     src/ai_engine.cpp
     src/model_manager.cpp
     src/ai_chat_model.cpp
+    src/backend.cpp
+    src/simulation_backend.cpp
+    src/logger.cpp
+    src/config.cpp
 )
 
 set(QTAI_CORE_HEADERS
     include/qt-ai-desktop/ai_engine.h
     include/qt-ai-desktop/model_manager.h
     include/qt-ai-desktop/ai_chat_model.h
+    include/qt-ai-desktop/backend.h
+    include/qt-ai-desktop/simulation_backend.h
+    include/qt-ai-desktop/logger.h
+    include/qt-ai-desktop/config.h
 )
 
 add_library(qt-ai-desktop-core STATIC
@@ -122,6 +130,14 @@ endif()
 # =============================================================================
 if(QTAI_BUILD_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+# =============================================================================
+# 测试
+# =============================================================================
+if(QTAI_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
 
 # =============================================================================

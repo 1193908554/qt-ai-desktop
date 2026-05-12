@@ -1,0 +1,146 @@
+# =============================================================================
+# GitHub Actions CI - Multi-platform Build & Test
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  release:
+    types: [created, edited]
+
+env:
+  BUILD_TYPE: Release
+  QT_VERSION: '6.7.0'
+
+jobs:
+  # ===========================================================================
+  # Windows 构建
+  # ===========================================================================
+  build-windows:
+    name: Windows (MSVC)
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        qt_arch: [win64_msvc2022_64]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: ${{ matrix.qt_arch }}
+          modules: 'qtmultimedia'
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -S . `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DQTAI_BUILD_TESTS=ON `
+            -DQTAI_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Run Tests
+        run: |
+          cd build
+          ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
+
+      - name: Upload Artifacts
+        if: github.event_name == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ github.event.release.tag_name }}
+          path: build/bin/${{ env.BUILD_TYPE }}/
+          retention-days: 7
+
+  # ===========================================================================
+  # Linux 构建
+  # ===========================================================================
+  build-linux:
+    name: Linux (GCC)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build \
+            libgl1-mesa-dev libxkbcommon-dev \
+            libfontconfig1-dev libfreetype-dev
+
+      - name: Setup Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: desktop
+          modules: 'qtmultimedia'
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -S . \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DQTAI_BUILD_TESTS=ON \
+            -DQTAI_BUILD_EXAMPLES=ON \
+            -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run Tests
+        run: |
+          cd build
+          ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
+
+  # ===========================================================================
+  # macOS 构建
+  # ===========================================================================
+  build-macos:
+    name: macOS (Clang)
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          modules: 'qtmultimedia'
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DQTAI_BUILD_TESTS=ON \
+            -DQTAI_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run Tests
+        run: |
+          cd build
+          ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
